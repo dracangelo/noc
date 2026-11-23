@@ -1,0 +1,23 @@
+rule_files:
+  - ../prometheus/rules/noc.rules.yml
+evaluation_interval: 5s
+
+tests:
+  - interval: 5s
+    input_series:
+      - series: 'probe_success{job="lab-icmp",instance="172.20.20.11",node="core1"}'
+        values: '1 1 1 0 0 0 0 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 10s
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 45s
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: lab-icmp
+              instance: 172.20.20.11
+              node: core1
+            exp_annotations:
+              summary: "Node 172.20.20.11 is not responding to ICMP"

@@ -1,0 +1,8 @@
+.env
+.venv/
+results/
+clab-*/
+*.pcap
+*.pcapng
+*.log
+__pycache__/

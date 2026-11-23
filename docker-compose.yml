@@ -1,0 +1,89 @@
+# Everything runs on the host network and listens on 127.0.0.1 only,
+# so it can reach the lab's management network (172.20.20.0/24) directly.
+name: noc
+services:
+  prometheus:
+    image: ${PROMETHEUS_IMAGE}
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.listen-address=127.0.0.1:9090
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.retention.size=5GB
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+
+  alertmanager:
+    image: ${ALERTMANAGER_IMAGE}
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --web.listen-address=127.0.0.1:9093
+      - --cluster.listen-address=
+      - --storage.path=/alertmanager
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+
+  blackbox:
+    image: ${BLACKBOX_IMAGE}
+    network_mode: host
+    restart: unless-stopped
+    cap_add: [NET_RAW]
+    command:
+      - --config.file=/config/blackbox.yml
+      - --web.listen-address=127.0.0.1:9115
+    volumes:
+      - ./blackbox/blackbox.yml:/config/blackbox.yml:ro
+
+  loki:
+    image: ${LOKI_IMAGE}
+    network_mode: host
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+
+  alloy:
+    image: ${ALLOY_IMAGE}
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=127.0.0.1:12345
+      - --storage.path=/var/lib/alloy/data
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+
+  grafana:
+    image: ${GRAFANA_IMAGE}
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      GF_SERVER_HTTP_ADDR: 127.0.0.1
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/noc-overview.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  prometheus-data:
+  alertmanager-data:
+  loki-data:
+  grafana-data:
+  alloy-data:

@@ -1,0 +1,58 @@
+name: noc-lab
+mgmt:
+  network: noc-mgmt
+  ipv4-subnet: 172.20.20.0/24
+topology:
+  defaults:
+    kind: linux
+  nodes:
+    core1:
+      image: quay.io/frrouting/frr:10.2.1
+      mgmt-ipv4: 172.20.20.11
+      binds:
+        - configs/core1/daemons:/etc/frr/daemons
+        - configs/core1/frr.conf:/etc/frr/frr.conf
+    core2:
+      image: quay.io/frrouting/frr:10.2.1
+      mgmt-ipv4: 172.20.20.12
+      binds:
+        - configs/core2/daemons:/etc/frr/daemons
+        - configs/core2/frr.conf:/etc/frr/frr.conf
+    dist1:
+      image: quay.io/frrouting/frr:10.2.1
+      mgmt-ipv4: 172.20.20.13
+      binds:
+        - configs/dist1/daemons:/etc/frr/daemons
+        - configs/dist1/frr.conf:/etc/frr/frr.conf
+    dist2:
+      image: quay.io/frrouting/frr:10.2.1
+      mgmt-ipv4: 172.20.20.14
+      binds:
+        - configs/dist2/daemons:/etc/frr/daemons
+        - configs/dist2/frr.conf:/etc/frr/frr.conf
+    host1:
+      image: nicolaka/netshoot:latest
+      mgmt-ipv4: 172.20.20.15
+      cmd: sleep infinity
+      exec:
+        - ip link set eth1 up
+        - ip addr add 192.168.10.10/24 dev eth1
+        - ip route add 192.168.0.0/16 via 192.168.10.1
+        - ip route add 10.0.0.0/8 via 192.168.10.1
+    host2:
+      image: nicolaka/netshoot:latest
+      mgmt-ipv4: 172.20.20.16
+      cmd: sleep infinity
+      exec:
+        - ip link set eth1 up
+        - ip addr add 192.168.20.10/24 dev eth1
+        - ip route add 192.168.0.0/16 via 192.168.20.1
+        - ip route add 10.0.0.0/8 via 192.168.20.1
+  links:
+    - endpoints: ["core1:eth1", "core2:eth1"]
+    - endpoints: ["core1:eth2", "dist1:eth1"]
+    - endpoints: ["core1:eth3", "dist2:eth1"]
+    - endpoints: ["core2:eth2", "dist1:eth2"]
+    - endpoints: ["core2:eth3", "dist2:eth2"]
+    - endpoints: ["dist1:eth3", "host1:eth1"]
+    - endpoints: ["dist2:eth3", "host2:eth1"]

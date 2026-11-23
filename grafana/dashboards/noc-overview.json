@@ -1,0 +1,410 @@
+{
+  "title": "NOC Overview",
+  "uid": "noc-overview",
+  "tags": ["noc", "network", "lab"],
+  "schemaVersion": 39,
+  "version": 6,
+  "editable": true,
+  "refresh": "5s",
+  "timezone": "browser",
+  "time": { "from": "now-15m", "to": "now" },
+  "graphTooltip": 1,
+  "links": [
+    {
+      "title": "Prometheus",
+      "url": "http://127.0.0.1:9090",
+      "type": "link",
+      "icon": "external link",
+      "targetBlank": true,
+      "keepTime": true
+    },
+    {
+      "title": "Alertmanager",
+      "url": "http://127.0.0.1:9093",
+      "type": "link",
+      "icon": "external link",
+      "targetBlank": true,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Availability",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Node reachability",
+      "description": "ICMP probe result per lab node over the management network. Red = unreachable.",
+      "gridPos": { "x": 0, "y": 1, "w": 24, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "probe_success{job=\"lab-icmp\"}",
+          "legendFormat": "{{node}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "${__field.labels.node}",
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "NO DATA",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "DOWN", "color": "red", "index": 0 },
+                "1": { "text": "UP", "color": "green", "index": 1 }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard"
+      }
+    },
+    {
+      "id": 11,
+      "type": "row",
+      "title": "Latency & alerts",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "ICMP round-trip time",
+      "description": "RTT in milliseconds per node. Dashed markers at 50 ms (warning) and 150 ms (critical).",
+      "gridPos": { "x": 0, "y": 6, "w": 16, "h": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "probe_icmp_duration_seconds{job=\"lab-icmp\",phase=\"rtt\"} * 1000",
+          "legendFormat": "{{node}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 1,
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "scaleDistribution": { "type": "linear" },
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "barAlignment": 0,
+            "pointSize": 5,
+            "thresholdsStyle": { "mode": "dashed" },
+            "stacking": { "mode": "none", "group": "A" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 50 },
+              { "color": "red", "value": 150 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["lastNotNull", "mean", "max"],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Firing alerts",
+      "description": "Alerts currently firing in Prometheus, coloured by severity.",
+      "gridPos": { "x": 16, "y": 6, "w": 8, "h": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ALERTS{alertstate=\"firing\"}",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "alertstate": true,
+              "job": true
+            },
+            "renameByName": {
+              "alertname": "Alert",
+              "severity": "Severity",
+              "instance": "Target",
+              "node": "Node"
+            },
+            "indexByName": {
+              "severity": 0,
+              "alertname": 1,
+              "node": 2,
+              "instance": 3
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No firing alerts",
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false,
+            "filterable": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Severity" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-background", "mode": "basic" }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "critical": { "text": "CRITICAL", "color": "red", "index": 0 },
+                      "warning": { "text": "WARNING", "color": "orange", "index": 1 },
+                      "info": { "text": "INFO", "color": "blue", "index": 2 }
+                    }
+                  }
+                ]
+              },
+              { "id": "custom.width", "value": 90 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Alert" },
+            "properties": [{ "id": "custom.width", "value": 140 }]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": ["sum"],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [{ "displayName": "Severity", "desc": false }]
+      }
+    },
+    {
+      "id": 12,
+      "type": "row",
+      "title": "Logs",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Error & warning log rate",
+      "description": "Log lines per node and minute whose text contains error/warning keywords, from the Loki streams Alloy ships out of the lab containers.",
+      "gridPos": { "x": 0, "y": 17, "w": 16, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "expr": "sum by (node) (rate({job=\"lab-logs\", lab=\"noc-lab\"} |~ \"(?i)\\\\b(error|err|warning|warn)\\\\b\" [1m])) * 60",
+          "legendFormat": "{{node}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "min": 0,
+          "noValue": "No errors or warnings in range",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "axisPlacement": "auto",
+            "axisLabel": "lines / min",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "scaleDistribution": { "type": "linear" },
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "barAlignment": 0,
+            "pointSize": 5,
+            "stacking": { "mode": "none", "group": "A" }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["lastNotNull", "mean", "max"],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Errors & warnings by node",
+      "description": "Total error/warning log lines per lab node over the dashboard time range. Green = quiet, amber = noisy, red = needs investigation. Nodes that have never shipped logs are absent.",
+      "gridPos": { "x": 16, "y": 17, "w": 8, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (node) (count_over_time({job=\"lab-logs\", lab=\"noc-lab\"} |~ \"(?i)\\\\b(error|err|warning|warn)\\\\b\" [$__range])) or on(node) sum by (node) (count_over_time({job=\"lab-logs\", lab=\"noc-lab\"} [$__range])) * 0",
+          "legendFormat": "{{node}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "${__field.labels.node}",
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "noValue": "CLEAN",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "CLEAN", "color": "green", "index": 0 }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "percentChangeColorMode": "standard"
+      }
+    },
+    {
+      "id": 4,
+      "type": "logs",
+      "title": "Lab logs",
+      "description": "Most recent log lines shipped to Loki by Alloy from the clab-noc-lab-* containers, newest first.",
+      "gridPos": { "x": 0, "y": 25, "w": 24, "h": 12 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "expr": "{job=\"lab-logs\", lab=\"noc-lab\"}",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No log entries in the selected time range"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": true,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending",
+        "fontSize": "12px",
+        "detailsMode": "inline"
+      }
+    }
+  ]
+}

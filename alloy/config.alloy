@@ -1,0 +1,48 @@
+// Grafana Alloy: tails the containerlab lab containers and pushes their logs to Loki.
+// Streams carry job="lab-logs", lab="noc-lab" plus node/container labels.
+
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+discovery.docker "lab" {
+  host = "unix:///var/run/docker.sock"
+
+  filter {
+    name   = "name"
+    values = ["clab-noc-lab-"]
+  }
+}
+
+discovery.relabel "lab" {
+  targets = []
+
+  // clab-noc-lab-core1 -> node="core1"
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/clab-noc-lab-(.+)"
+    target_label  = "node"
+  }
+
+  // Keep the full container name for reference.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.+)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "lab" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.lab.targets
+  labels        = {"job" = "lab-logs", "lab" = "noc-lab"}
+  relabel_rules = discovery.relabel.lab.rules
+  forward_to    = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://127.0.0.1:3100/loki/api/v1/push"
+  }
+}
