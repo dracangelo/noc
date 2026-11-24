@@ -19,6 +19,11 @@ scrape_configs:
     static_configs:
       - targets: ["127.0.0.1:9115"]
 
+  # Real-time OSPF, interface stats, and routing telemetry
+  - job_name: frr-telemetry
+    static_configs:
+      - targets: ["127.0.0.1:9348"]
+
   # ICMP reachability of every lab node over the management network
   - job_name: lab-icmp
     metrics_path: /probe

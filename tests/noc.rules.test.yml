@@ -20,4 +20,43 @@ tests:
               instance: 172.20.20.11
               node: core1
             exp_annotations:
-              summary: "Node 172.20.20.11 is not responding to ICMP"
+              summary: "Node core1 is not responding to ICMP"
+              description: "ICMP probe to 172.20.20.11 (core1) failed for 15s."
+
+  - interval: 5s
+    input_series:
+      - series: 'frr_ospf_neighbor_state{node="core1",neighbor="2.2.2.2",interface="eth1",state="Full"}'
+        values: '1 1 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 5s
+        alertname: OspfNeighborDown
+        exp_alerts: []
+      - eval_time: 25s
+        alertname: OspfNeighborDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              node: core1
+              neighbor: 2.2.2.2
+              interface: eth1
+              state: Full
+            exp_annotations:
+              summary: "OSPF neighbor 2.2.2.2 down on core1 (eth1)"
+              description: "OSPF adjacency state dropped from Full on interface eth1."
+
+  - interval: 5s
+    input_series:
+      - series: 'network_interface_up{node="dist1",device="eth2",state="DOWN"}'
+        values: '1 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 20s
+        alertname: InterfaceDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              node: dist1
+              device: eth2
+              state: DOWN
+            exp_annotations:
+              summary: "Interface eth2 down on dist1"
+              description: "Operational state of eth2 is DOWN."

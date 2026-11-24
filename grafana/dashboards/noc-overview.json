@@ -1,9 +1,9 @@
 {
   "title": "NOC Overview",
   "uid": "noc-overview",
-  "tags": ["noc", "network", "lab"],
+  "tags": ["noc", "network", "lab", "routing"],
   "schemaVersion": 39,
-  "version": 6,
+  "version": 7,
   "editable": true,
   "refresh": "5s",
   "timezone": "browser",
@@ -25,13 +25,21 @@
       "icon": "external link",
       "targetBlank": true,
       "keepTime": true
+    },
+    {
+      "title": "Incident Center",
+      "url": "http://127.0.0.1:9095",
+      "type": "link",
+      "icon": "bolt",
+      "targetBlank": true,
+      "keepTime": false
     }
   ],
   "panels": [
     {
       "id": 10,
       "type": "row",
-      "title": "Availability",
+      "title": "Node Reachability & Routing Adjacencies",
       "collapsed": false,
       "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
       "panels": []
@@ -39,9 +47,9 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "Node reachability",
+      "title": "ICMP Reachability",
       "description": "ICMP probe result per lab node over the management network. Red = unreachable.",
-      "gridPos": { "x": 0, "y": 1, "w": 24, "h": 4 },
+      "gridPos": { "x": 0, "y": 1, "w": 12, "h": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -84,15 +92,64 @@
         "textMode": "value_and_name",
         "justifyMode": "center",
         "orientation": "horizontal",
-        "wideLayout": true,
-        "showPercentChange": false,
-        "percentChangeColorMode": "standard"
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "OSPF Adjacencies (State = Full)",
+      "description": "Active OSPF neighbor adjacency status. 1 = Full (Healthy), 0 = Not Full / Down.",
+      "gridPos": { "x": 12, "y": 1, "w": 12, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "frr_ospf_neighbor_state",
+          "legendFormat": "{{node}} ➔ {{neighbor}} ({{interface}})",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "${__field.labels.node} ➔ ${__field.labels.neighbor}",
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "N/A",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "DOWN", "color": "red", "index": 0 },
+                "1": { "text": "FULL", "color": "green", "index": 1 }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "wideLayout": true
       }
     },
     {
       "id": 11,
       "type": "row",
-      "title": "Latency & alerts",
+      "title": "Latency, Traffic Throughput & Packet Drops",
       "collapsed": false,
       "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 },
       "panels": []
@@ -100,9 +157,9 @@
     {
       "id": 2,
       "type": "timeseries",
-      "title": "ICMP round-trip time",
-      "description": "RTT in milliseconds per node. Dashed markers at 50 ms (warning) and 150 ms (critical).",
-      "gridPos": { "x": 0, "y": 6, "w": 16, "h": 10 },
+      "title": "ICMP Round-Trip Time",
+      "description": "RTT in milliseconds per node.",
+      "gridPos": { "x": 0, "y": 6, "w": 8, "h": 9 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -121,22 +178,9 @@
             "drawStyle": "line",
             "lineInterpolation": "smooth",
             "lineWidth": 2,
-            "fillOpacity": 12,
-            "gradientMode": "opacity",
+            "fillOpacity": 10,
             "showPoints": "never",
-            "spanNulls": false,
-            "axisSoftMin": 0,
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
-            "scaleDistribution": { "type": "linear" },
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "insertNulls": false,
-            "barAlignment": 0,
-            "pointSize": 5,
-            "thresholdsStyle": { "mode": "dashed" },
-            "stacking": { "mode": "none", "group": "A" }
+            "thresholdsStyle": { "mode": "dashed" }
           },
           "thresholds": {
             "mode": "absolute",
@@ -154,9 +198,51 @@
           "showLegend": true,
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["lastNotNull", "mean", "max"],
-          "sortBy": "Max",
-          "sortDesc": true
+          "calcs": ["lastNotNull", "max"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Interface Traffic Throughput (Rx / Tx)",
+      "description": "Throughput in bits/second across core and distribution router links.",
+      "gridPos": { "x": 8, "y": 6, "w": 10, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (node, device) (rate(network_receive_bytes_total{device=~\"eth[0-9]+\"}[30s])) * 8",
+          "legendFormat": "{{node}}:{{device}} Rx"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (node, device) (rate(network_transmit_bytes_total{device=~\"eth[0-9]+\"}[30s])) * 8",
+          "legendFormat": "{{node}}:{{device}} Tx"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bps",
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["lastNotNull", "max"]
         },
         "tooltip": { "mode": "multi", "sort": "desc" }
       }
@@ -164,9 +250,9 @@
     {
       "id": 3,
       "type": "table",
-      "title": "Firing alerts",
+      "title": "Firing Alerts & Incidents",
       "description": "Alerts currently firing in Prometheus, coloured by severity.",
-      "gridPos": { "x": 16, "y": 6, "w": 8, "h": 10 },
+      "gridPos": { "x": 18, "y": 6, "w": 6, "h": 9 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -196,20 +282,17 @@
             "indexByName": {
               "severity": 0,
               "alertname": 1,
-              "node": 2,
-              "instance": 3
+              "node": 2
             }
           }
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "noValue": "No firing alerts",
+          "noValue": "All systems healthy",
           "custom": {
             "align": "auto",
-            "cellOptions": { "type": "auto" },
-            "inspect": false,
-            "filterable": false
+            "cellOptions": { "type": "auto" }
           }
         },
         "overrides": [
@@ -232,42 +315,30 @@
                     }
                   }
                 ]
-              },
-              { "id": "custom.width", "value": 90 }
+              }
             ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Alert" },
-            "properties": [{ "id": "custom.width", "value": 140 }]
           }
         ]
       },
       "options": {
         "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false,
-          "reducer": ["sum"],
-          "countRows": false,
-          "fields": ""
-        },
-        "sortBy": [{ "displayName": "Severity", "desc": false }]
+        "cellHeight": "sm"
       }
     },
     {
       "id": 12,
       "type": "row",
-      "title": "Logs",
+      "title": "Router & Lab Logs",
       "collapsed": false,
-      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 1 },
+      "gridPos": { "x": 0, "y": 15, "w": 24, "h": 1 },
       "panels": []
     },
     {
       "id": 5,
       "type": "timeseries",
-      "title": "Error & warning log rate",
-      "description": "Log lines per node and minute whose text contains error/warning keywords, from the Loki streams Alloy ships out of the lab containers.",
-      "gridPos": { "x": 0, "y": 17, "w": 16, "h": 8 },
+      "title": "Error & Warning Log Rate",
+      "description": "Log lines per node containing error/warning keywords.",
+      "gridPos": { "x": 0, "y": 16, "w": 16, "h": 7 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
@@ -282,27 +353,14 @@
           "unit": "short",
           "decimals": 1,
           "min": 0,
-          "noValue": "No errors or warnings in range",
+          "noValue": "No errors or warnings",
           "color": { "mode": "palette-classic" },
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "fillOpacity": 12,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisSoftMin": 0,
-            "axisPlacement": "auto",
-            "axisLabel": "lines / min",
-            "axisColorMode": "text",
-            "axisBorderShow": false,
-            "scaleDistribution": { "type": "linear" },
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "insertNulls": false,
-            "barAlignment": 0,
-            "pointSize": 5,
-            "stacking": { "mode": "none", "group": "A" }
+            "showPoints": "never"
           }
         },
         "overrides": []
@@ -312,19 +370,15 @@
           "showLegend": true,
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["lastNotNull", "mean", "max"],
-          "sortBy": "Max",
-          "sortDesc": true
-        },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+          "calcs": ["lastNotNull", "max"]
+        }
       }
     },
     {
       "id": 6,
       "type": "stat",
-      "title": "Errors & warnings by node",
-      "description": "Total error/warning log lines per lab node over the dashboard time range. Green = quiet, amber = noisy, red = needs investigation. Nodes that have never shipped logs are absent.",
-      "gridPos": { "x": 16, "y": 17, "w": 8, "h": 8 },
+      "title": "Errors & Warnings by Node",
+      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 7 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
@@ -338,17 +392,7 @@
         "defaults": {
           "displayName": "${__field.labels.node}",
           "unit": "short",
-          "decimals": 0,
-          "min": 0,
           "noValue": "CLEAN",
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": { "text": "CLEAN", "color": "green", "index": 0 }
-              }
-            }
-          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -365,19 +409,14 @@
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "value_and_name",
-        "justifyMode": "center",
-        "orientation": "horizontal",
-        "wideLayout": true,
-        "showPercentChange": false,
-        "percentChangeColorMode": "standard"
+        "justifyMode": "center"
       }
     },
     {
       "id": 4,
       "type": "logs",
-      "title": "Lab logs",
-      "description": "Most recent log lines shipped to Loki by Alloy from the clab-noc-lab-* containers, newest first.",
-      "gridPos": { "x": 0, "y": 25, "w": 24, "h": 12 },
+      "title": "Lab Logs",
+      "gridPos": { "x": 0, "y": 23, "w": 24, "h": 10 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
@@ -388,22 +427,15 @@
         }
       ],
       "fieldConfig": {
-        "defaults": {
-          "noValue": "No log entries in the selected time range"
-        },
+        "defaults": { "noValue": "No logs in selected time range" },
         "overrides": []
       },
       "options": {
         "showTime": true,
         "showLabels": true,
-        "showCommonLabels": true,
         "wrapLogMessage": true,
-        "prettifyLogMessage": false,
-        "enableLogDetails": true,
-        "dedupStrategy": "none",
         "sortOrder": "Descending",
-        "fontSize": "12px",
-        "detailsMode": "inline"
+        "fontSize": "12px"
       }
     }
   ]

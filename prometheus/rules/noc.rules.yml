@@ -7,7 +7,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Node {{ $labels.instance }} is not responding to ICMP"
+          summary: "Node {{ $labels.node }} is not responding to ICMP"
+          description: "ICMP probe to {{ $labels.instance }} ({{ $labels.node }}) failed for 15s."
 
       - alert: HighLatency
         expr: probe_icmp_duration_seconds{job="lab-icmp",phase="rtt"} > 0.05
@@ -15,4 +16,34 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "RTT to {{ $labels.instance }} above 50 ms"
+          summary: "RTT to {{ $labels.node }} above 50 ms"
+          description: "ICMP RTT on management path is {{ $value | humanizeDuration }}."
+
+  - name: noc-routing
+    rules:
+      - alert: OspfNeighborDown
+        expr: frr_ospf_neighbor_state == 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "OSPF neighbor {{ $labels.neighbor }} down on {{ $labels.node }} ({{ $labels.interface }})"
+          description: "OSPF adjacency state dropped from Full on interface {{ $labels.interface }}."
+
+      - alert: InterfaceDown
+        expr: network_interface_up{device=~"eth[0-9]+"} == 0
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Interface {{ $labels.device }} down on {{ $labels.node }}"
+          description: "Operational state of {{ $labels.device }} is DOWN."
+
+      - alert: HighInterfaceDropRate
+        expr: rate(network_receive_drop_total[1m]) > 5 or rate(network_transmit_drop_total[1m]) > 5
+        for: 20s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Packet drops detected on {{ $labels.node }} ({{ $labels.device }})"
+          description: "Interface is dropping > 5 packets/second, indicating congestion or netem loss."
